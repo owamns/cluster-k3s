@@ -1,0 +1,206 @@
+SET autocommit = 0;
+SET foreign_key_checks = 0;
+
+DROP PROCEDURE IF EXISTS InsertCategories;
+DROP PROCEDURE IF EXISTS InsertProducts;
+DROP PROCEDURE IF EXISTS InsertOrders;
+DROP PROCEDURE IF EXISTS InsertOrderItems;
+
+-- ===============================
+-- 1. CREACIÓN DE TABLAS
+-- ===============================
+
+CREATE TABLE IF NOT EXISTS categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description VARCHAR(255)
+);
+CREATE INDEX idx_categories_id ON categories (id);
+CREATE INDEX idx_categories_name ON categories (name);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price FLOAT NOT NULL,
+    stock INT NOT NULL,
+    category_id INT NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+CREATE INDEX idx_products_id ON products (id);
+CREATE INDEX idx_products_name ON products (name);
+CREATE INDEX idx_products_category_id ON products (category_id);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    total_amount FLOAT NOT NULL,
+    status ENUM('pending', 'processing', 'completed', 'cancelled') DEFAULT 'pending' NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_orders_id ON orders (id);
+CREATE INDEX idx_orders_user_id ON orders (user_id);
+CREATE INDEX idx_orders_created_at ON orders (created_at);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price_per_unit FLOAT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+CREATE INDEX idx_order_items_id ON order_items (id);
+CREATE INDEX idx_order_items_order_id ON order_items (order_id);
+CREATE INDEX idx_order_items_product_id ON order_items (product_id);
+
+-- ===============================
+-- 2. LIMPIAR DATOS ANTERIORES
+-- ===============================
+TRUNCATE TABLE order_items;
+TRUNCATE TABLE orders;
+TRUNCATE TABLE products;
+TRUNCATE TABLE categories;
+
+-- ===============================
+-- 3. INSERTAR CATEGORÍAS
+-- ===============================
+DELIMITER //
+
+CREATE PROCEDURE InsertCategories()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    DECLARE num_categories INT DEFAULT JSON_LENGTH(
+        '["Electrónica", "Ropa Hombre", "Ropa Mujer", "Hogar y Cocina", "Libros", "Juguetes y Juegos", "Deportes y Aire Libre", "Belleza y Cuidado Personal", "Automotriz", "Salud y Bienestar", "Mascotas", "Oficina y Papelería", "Jardín y Bricolaje", "Música y Películas", "Videojuegos", "Alimentos y Bebidas", "Joyas y Relojes", "Arte y Manualidades", "Bebés", "Suministros Industriales", "Calzado", "Accesorios Moda", "Telefonía", "Computación", "Tablets", "Audio y Video", "Consolas", "Accesorios Gaming", "Electrodomésticos Pequeños", "Herramientas", "Iluminación", "Muebles", "Decoración", "Utensilios Cocina", "Textil Hogar", "Ficción", "No Ficción", "Infantil", "Manga", "Cómics", "Puzzles", "Juegos Mesa", "Figuras Acción", "Muñecas", "Construcción", "Gimnasio", "Yoga", "Ciclismo", "Running", "Camping"]'
+    );
+    DECLARE category_name VARCHAR(100);
+    DECLARE category_names_array JSON;
+    SET category_names_array = '["Electrónica", "Ropa Hombre", "Ropa Mujer", "Hogar y Cocina", "Libros", "Juguetes y Juegos", "Deportes y Aire Libre", "Belleza y Cuidado Personal", "Automotriz", "Salud y Bienestar", "Mascotas", "Oficina y Papelería", "Jardín y Bricolaje", "Música y Películas", "Videojuegos", "Alimentos y Bebidas", "Joyas y Relojes", "Arte y Manualidades", "Bebés", "Suministros Industriales", "Calzado", "Accesorios Moda", "Telefonía", "Computación", "Tablets", "Audio y Video", "Consolas", "Accesorios Gaming", "Electrodomésticos Pequeños", "Herramientas", "Iluminación", "Muebles", "Decoración", "Utensilios Cocina", "Textil Hogar", "Ficción", "No Ficción", "Infantil", "Manga", "Cómics", "Puzzles", "Juegos Mesa", "Figuras Acción", "Muñecas", "Construcción", "Gimnasio", "Yoga", "Ciclismo", "Running", "Camping"]';
+
+    WHILE i <= num_categories DO
+        SET category_name = JSON_UNQUOTE(JSON_EXTRACT(category_names_array, CONCAT('$[', i - 1, ']')));
+        INSERT INTO categories (name, description)
+        VALUES (category_name, CONCAT('Categoría para productos relacionados con ', category_name, '.'));
+        SET i = i + 1;
+    END WHILE;
+END //
+
+DELIMITER ;
+
+CALL InsertCategories();
+
+-- ===============================
+-- 4. INSERTAR PRODUCTOS
+-- ===============================
+DELIMITER //
+
+CREATE PROCEDURE InsertProducts()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    DECLARE category_count INT;
+    SELECT COUNT(*) INTO category_count FROM categories;
+
+    WHILE i <= 10000 DO
+        INSERT INTO products (name, description, price, stock, category_id)
+        VALUES (
+            CONCAT('Producto Ficticio ', i),
+            CONCAT('Descripción detallada para el Producto ', i, '.'),
+            ROUND(RAND() * (500 - 10) + 10, 2),
+            FLOOR(RAND() * 5000) + 5000,
+            FLOOR(RAND() * category_count) + 1
+        );
+        SET i = i + 1;
+    END WHILE;
+END //
+
+DELIMITER ;
+
+CALL InsertProducts();
+
+-- ===============================
+-- 5. INSERTAR PEDIDOS
+-- ===============================
+DELIMITER //
+
+CREATE PROCEDURE InsertOrders()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    DECLARE start_date DATETIME DEFAULT '2024-01-01 00:00:00';
+    DECLARE end_date DATETIME DEFAULT NOW();
+    DECLARE random_status VARCHAR(20);
+    DECLARE status_options JSON DEFAULT '["pending", "processing", "completed", "cancelled"]';
+
+    WHILE i <= 5000 DO
+        SET random_status = JSON_UNQUOTE(JSON_EXTRACT(status_options, CONCAT('$[', FLOOR(RAND() * JSON_LENGTH(status_options)), ']')));
+        INSERT INTO orders (user_id, total_amount, status, created_at)
+        VALUES (
+            CONCAT('user_', LPAD(FLOOR(RAND() * 100000), 5, '0')),
+            ROUND(RAND() * (1000 - 20) + 20, 2),
+            random_status,
+            FROM_UNIXTIME(UNIX_TIMESTAMP(start_date) + FLOOR(RAND() * (UNIX_TIMESTAMP(end_date) - UNIX_TIMESTAMP(start_date))))
+        );
+        SET i = i + 1;
+    END WHILE;
+END //
+
+DELIMITER ;
+
+CALL InsertOrders();
+
+-- ===============================
+-- 6. INSERTAR ÍTEMS DE PEDIDOS
+-- ===============================
+DELIMITER //
+
+CREATE PROCEDURE InsertOrderItems()
+BEGIN
+    DECLARE order_id_val INT;
+    DECLARE product_id_val INT;
+    DECLARE num_items INT;
+    DECLARE item_quantity INT;
+    DECLARE item_price FLOAT;
+    DECLARE i INT;
+    DECLARE total_products INT;
+    DECLARE done INT DEFAULT 0;
+    DECLARE cur CURSOR FOR SELECT id FROM orders;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    SELECT COUNT(*) INTO total_products FROM products;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO order_id_val;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        SET num_items = FLOOR(RAND() * 5) + 1;
+        SET i = 1;
+        WHILE i <= num_items DO
+            SET product_id_val = FLOOR(RAND() * total_products) + 1;
+            SELECT price INTO item_price FROM products WHERE id = product_id_val LIMIT 1;
+            SET item_quantity = FLOOR(RAND() * 5) + 1;
+
+            INSERT INTO order_items (order_id, product_id, quantity, price_per_unit)
+            VALUES (order_id_val, product_id_val, item_quantity, item_price);
+
+            SET i = i + 1;
+        END WHILE;
+    END LOOP;
+    CLOSE cur;
+END //
+
+DELIMITER ;
+
+CALL InsertOrderItems();
+
+-- ===============================
+-- 7. LIMPIEZA FINAL
+-- ===============================
+DROP PROCEDURE IF EXISTS InsertCategories;
+DROP PROCEDURE IF EXISTS InsertProducts;
+DROP PROCEDURE IF EXISTS InsertOrders;
+DROP PROCEDURE IF EXISTS InsertOrderItems;
+
+SET foreign_key_checks = 1;
+COMMIT;

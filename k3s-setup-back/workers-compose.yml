@@ -1,0 +1,40 @@
+services:
+  k3s-worker-1:
+    image: rancher/k3s:latest
+    container_name: k3s-worker-1
+    privileged: true
+    ports:
+      - "10251:10250"
+    networks:
+      - k3s-network
+    volumes:
+      - ./k3s/worker-1:/var/lib/rancher/k3s/storage
+      - ./registries.yaml:/etc/rancher/k3s/registries.yaml
+    environment:
+      - K3S_URL=${MASTER_URL}
+      - K3S_TOKEN=${MASTER_TOKEN}
+      - K3S_NODE_NAME=k3s-worker-1
+    command: agent
+    restart: unless-stopped
+
+  k3s-worker-2:
+    image: rancher/k3s:latest
+    container_name: k3s-worker-2
+    privileged: true
+    ports:
+      - "10252:10250"
+    networks:
+      - k3s-network
+    volumes:
+      - ./k3s/worker-2:/var/lib/rancher/k3s/storage
+      - ./registries.yaml:/etc/rancher/k3s/registries.yaml
+    environment:
+      - K3S_URL=${MASTER_URL}
+      - K3S_TOKEN=${MASTER_TOKEN}
+      - K3S_NODE_NAME=k3s-worker-2
+    command: agent
+    restart: unless-stopped
+
+networks:
+  k3s-network:
+    external: true

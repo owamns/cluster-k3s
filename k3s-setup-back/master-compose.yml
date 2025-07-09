@@ -1,0 +1,26 @@
+services:
+  k3s-master:
+    image: rancher/k3s:latest
+    container_name: k3s-master
+    privileged: true
+    ports:
+      - "6443:6443"
+      - "30080:30080" 
+    volumes:
+      - ./kubeconfig.yaml:/output/kubeconfig.yaml
+      - ./registries.yaml:/etc/rancher/k3s/registries.yaml
+    environment:
+      - K3S_TOKEN=${MASTER_TOKEN}
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+      - K3S_NODE_NAME=k3s-master
+    command:
+      - server
+      - --disable=traefik
+    networks:
+      - k3s-net
+    restart: unless-stopped
+
+networks:
+  k3s-net:
+    external: true

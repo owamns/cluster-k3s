@@ -1,0 +1,29 @@
+docker run -d \
+  --name ecommerce-mysql \
+  --network ecommerce_network \
+  -e MYSQL_ROOT_PASSWORD=owams_123 \
+  -e MYSQL_DATABASE=ecommerce_db \
+  -e MYSQL_USER=owams \
+  -e MYSQL_PASSWORD=owams123 \
+  -p 3306:3306 \
+  -v mysql_data:/var/lib/mysql \
+  -v $(pwd)/db_init/init.sql:/docker-entrypoint-initdb.d/init.sql \
+  --health-cmd="mysqladmin ping -h localhost -u owams -powams123" \
+  --health-interval=10s \
+  --health-timeout=5s \
+  --health-retries=5 \
+  --health-start-period=30s \
+  mysql:8.0
+
+
+docker run -d \
+  --name ecommerce-redis \
+  --network ecommerce_network \
+  -p 6379:6379 \
+  -v redis_data:/data \
+  --health-cmd="redis-cli ping" \
+  --health-interval=5s \
+  --health-timeout=3s \
+  --health-retries=5 \
+  --health-start-period=10s \
+  redis:7.0-alpine

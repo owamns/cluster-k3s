@@ -1,0 +1,14 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend-container
+    ports:
+      - "8000:8000"
+    networks:
+      - ecommerce_network
+
+networks:
+  ecommerce_network:
+    external: true
